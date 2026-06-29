@@ -76,9 +76,12 @@ En cada frame el programa:
 
 - Dibuja un fondo oscuro con una grilla tenue.
 - Dibuja una sola linea/tubo azul con brillo neon.
-- La cara izquierda comienza subiendo y luego gira 90 grados a la derecha.
-- La cara derecha continua el tramo y luego sube en 90 grados.
-- La cara superior continua verticalmente y luego gira 90 grados a la derecha a mitad de cara.
+- La cara izquierda comienza en la arista inferior, sube al centro y gira 90 grados hacia la derecha.
+- La cara derecha entra por la arista izquierda, llega al centro y gira 90 grados hacia arriba.
+- La cara superior entra por la arista inferior, llega al centro y gira 90 grados hacia la derecha.
+- La pista completa se ve de forma tenue y el tramo recorrido se ilumina detras de la pelota roja.
+- El rastro neon queda acumulado durante el recorrido por izquierda, derecha y arriba.
+- Al terminar la cara superior y volver al inicio, el rastro se reinicia junto con la pelota.
 - Cada entrada y salida de la linea ocurre en el centro de la arista correspondiente.
 - Anima una pelota roja luminosa que recorre el camino completo.
 - Sube esas superficies a OpenGL como texturas dinamicas.

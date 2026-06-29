@@ -221,11 +221,15 @@ class CircuitTextures:
                 red_ball,
                 red_glow,
                 [
-                    (0.50, 1.00),
-                    (0.50, 0.50),
-                    (1.00, 0.50),
+                    (
+                        [
+                            (0.50, 1.00),
+                            (0.50, 0.50),
+                            (1.00, 0.50),
+                        ],
+                        (0.00, 0.33),
+                    ),
                 ],
-                (0.00, 0.33),
             ),
             SingleLineFace(
                 panel,
@@ -233,11 +237,15 @@ class CircuitTextures:
                 red_ball,
                 red_glow,
                 [
-                    (0.00, 0.50),
-                    (0.50, 0.50),
-                    (0.50, 0.00),
+                    (
+                        [
+                            (0.00, 0.50),
+                            (0.50, 0.50),
+                            (0.50, 0.00),
+                        ],
+                        (0.33, 0.66),
+                    ),
                 ],
-                (0.33, 0.66),
             ),
             SingleLineFace(
                 panel,
@@ -245,11 +253,15 @@ class CircuitTextures:
                 red_ball,
                 red_glow,
                 [
-                    (0.50, 1.00),
-                    (0.50, 0.50),
-                    (1.00, 0.50),
+                    (
+                        [
+                            (0.50, 1.00),
+                            (0.50, 0.50),
+                            (1.00, 0.50),
+                        ],
+                        (0.66, 1.00),
+                    ),
                 ],
-                (0.66, 1.00),
             ),
         ]
 
@@ -279,15 +291,17 @@ class CircuitTextures:
 
 
 class SingleLineFace:
-    def __init__(self, background, trace_color, pulse_color, pulse_soft_color, path, progress_range):
+    def __init__(self, background, trace_color, pulse_color, pulse_soft_color, pieces):
         self.size = 384
         self.surface = pg.Surface((self.size, self.size), pg.SRCALPHA)
         self.background = background
         self.trace_color = trace_color
         self.pulse_color = pulse_color
         self.pulse_soft_color = pulse_soft_color
-        self.path = [self.to_pixels(point) for point in path]
-        self.progress_start, self.progress_end = progress_range
+        self.pieces = [
+            ([self.to_pixels(point) for point in path], progress_range)
+            for path, progress_range in pieces
+        ]
 
     def to_pixels(self, point):
         x, y = point
@@ -297,6 +311,7 @@ class SingleLineFace:
         self.surface.fill((*self.background, 255))
         self.draw_paper_texture()
         self.draw_trace()
+        self.draw_active_trace(global_progress)
         self.draw_pulse(global_progress)
 
     def draw_paper_texture(self):
@@ -308,35 +323,69 @@ class SingleLineFace:
             pg.draw.line(self.surface, color, (0, pos), (self.size, pos), 1)
 
     def draw_trace(self):
-        if len(self.path) < 2:
-            return
         layers = [
-            ((*self.trace_color, 38), 40),
-            ((*self.trace_color, 72), 28),
-            ((*mix_color(self.trace_color, (120, 235, 255), 0.35), 150), 18),
-            ((*self.trace_color, 245), 11),
-            ((*mix_color(self.trace_color, (255, 255, 255), 0.62), 255), 4),
+            ((*self.trace_color, 22), 34),
+            ((*self.trace_color, 46), 24),
+            ((*mix_color(self.trace_color, (120, 235, 255), 0.35), 90), 15),
+            ((*self.trace_color, 150), 8),
+            ((*mix_color(self.trace_color, (255, 255, 255), 0.45), 170), 3),
         ]
-        for color, width in layers:
-            self.draw_rounded_path(color, width)
+        for path, _ in self.pieces:
+            if len(path) < 2:
+                continue
+            for color, width in layers:
+                self.draw_rounded_path(path, color, width)
 
-    def draw_rounded_path(self, color, width):
-        pg.draw.lines(self.surface, color, False, self.path, width)
+    def draw_active_trace(self, global_progress):
+        layers = [
+            ((*self.trace_color, 60), 46),
+            ((*self.trace_color, 110), 31),
+            ((*mix_color(self.trace_color, (130, 240, 255), 0.45), 190), 20),
+            ((*self.trace_color, 255), 12),
+            ((*mix_color(self.trace_color, (255, 255, 255), 0.66), 255), 5),
+        ]
+
+        for path, (progress_start, progress_end) in self.pieces:
+            if global_progress >= progress_end:
+                traced_path = path
+            elif progress_start <= global_progress < progress_end:
+                local_progress = (global_progress - progress_start) / (progress_end - progress_start)
+                traced_path = partial_path(path, local_progress)
+            else:
+                continue
+
+            if len(traced_path) < 2:
+                continue
+
+            for color, width in layers:
+                self.draw_rounded_path(traced_path, color, width)
+
+    def draw_rounded_path(self, path, color, width):
+        pg.draw.lines(self.surface, color, False, path, width)
         radius = max(1, width // 2)
-        for point in self.path:
+        for point in path:
             pg.draw.circle(self.surface, color, point, radius)
 
     def draw_pulse(self, global_progress):
-        if not self.progress_start <= global_progress < self.progress_end:
+        active_piece = self.get_active_piece(global_progress)
+        if active_piece is None:
             return
-        local_progress = (global_progress - self.progress_start) / (self.progress_end - self.progress_start)
-        x, y, _ = point_and_angle_on_path(self.path, local_progress)
+
+        path, progress_start, progress_end = active_piece
+        local_progress = (global_progress - progress_start) / (progress_end - progress_start)
+        x, y, _ = point_and_angle_on_path(path, local_progress)
         position = (int(x), int(y))
 
         for radius, alpha in [(38, 32), (26, 76), (15, 170)]:
             pg.draw.circle(self.surface, (*self.pulse_soft_color, alpha), position, radius)
         pg.draw.circle(self.surface, (*self.pulse_color, 255), position, 9)
         pg.draw.circle(self.surface, (255, 230, 230, 230), (position[0] - 3, position[1] - 3), 3)
+
+    def get_active_piece(self, global_progress):
+        for path, (progress_start, progress_end) in self.pieces:
+            if progress_start <= global_progress < progress_end:
+                return path, progress_start, progress_end
+        return None
 
 def create_dynamic_texture(surface):
     texture = glGenTextures(1)
@@ -381,6 +430,38 @@ def point_and_angle_on_path(path, progress):
 
     start, end = path[-2], path[-1]
     return path[-1][0], path[-1][1], math.atan2(end[1] - start[1], end[0] - start[0])
+
+
+def partial_path(path, progress):
+    if len(path) < 2:
+        return path
+
+    lengths = []
+    total = 0.0
+    for start, end in zip(path, path[1:]):
+        length = math.dist(start, end)
+        lengths.append(length)
+        total += length
+
+    target = progress * total
+    travelled = 0.0
+    result = [path[0]]
+
+    for (start, end), length in zip(zip(path, path[1:]), lengths):
+        if travelled + length < target:
+            result.append(end)
+            travelled += length
+            continue
+
+        local = 0.0 if length == 0.0 else (target - travelled) / length
+        current = (
+            start[0] + (end[0] - start[0]) * local,
+            start[1] + (end[1] - start[1]) * local,
+        )
+        result.append(current)
+        return result
+
+    return path
 
 
 def mix_color(color_a, color_b, amount):
