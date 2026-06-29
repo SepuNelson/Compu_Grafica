@@ -10,35 +10,31 @@ Los vertices del cubo se calculan desde una longitud de arista en pixeles. Esto 
 
 Las aristas del cubo se dibujan como lineas OpenGL aparte, directamente entre los vertices compartidos. No forman parte de las texturas de cada cara, para evitar espacios visibles entre caras.
 
-La version actual dibuja un circuito estilo neon por codigo: fondo oscuro, linea/tubo azul brillante y una pelota roja luminosa. Por ahora la cara izquierda y la cara superior tienen recorrido conectado; la cara derecha queda vacia para seguir construyendo el circuito por partes.
+La version actual dibuja un circuito estilo neon por codigo: fondo oscuro, linea/tubo azul brillante y una pelota roja luminosa. El recorrido ya conecta las caras izquierda, derecha y superior.
 
 ## Estructura
 
 ```text
 Compu_Grafica/
 |-- main.py
+|-- cubo.py
+|-- diseno.py
 |-- warp.py
 |-- requirements.txt
 |-- README.md
-|-- shaders/
-|   |-- vertex.glsl
-|   `-- fragment.glsl
-`-- img/
-    |-- arriba/
-    |   `-- .gitkeep
-    |-- izquierda/
-    |   `-- .gitkeep
-    `-- derecha/
-        `-- .gitkeep
+`-- shaders/
+    |-- vertex.glsl
+    `-- fragment.glsl
 ```
 
 ## Que hace cada archivo
 
-- `main.py`: crea la ventana, inicializa OpenGL, carga shaders, crea las tres caras, carga texturas y dibuja el cubo.
+- `main.py`: punto de entrada del programa. Solo importa la app y la ejecuta.
+- `cubo.py`: crea la ventana, inicializa OpenGL, define vertices, dimensiones del cubo, homografias, caras, aristas y shaders.
+- `diseno.py`: define el diseno editable de la cinta, colores neon, rutas de cada cara, rangos de animacion, pelota roja y rastro.
 - `warp.py`: calcula los coeficientes de homografia para deformar cada cara.
 - `shaders/vertex.glsl`: transforma los vertices de cada cara hacia su posicion final.
 - `shaders/fragment.glsl`: aplica la textura correspondiente a cada cara.
-- `img/arriba`, `img/izquierda`, `img/derecha`: carpetas reservadas si despues quieres agregar recursos externos.
 - `requirements.txt`: dependencias necesarias.
 
 ## Instalacion
@@ -70,7 +66,7 @@ python main.py
 
 ## Circuito animado
 
-El circuito se genera dentro de `main.py` usando superficies de Pygame. No necesita videos ni imagenes externas.
+El circuito se genera dentro de `diseno.py` usando superficies de Pygame. No necesita videos ni imagenes externas.
 
 En cada frame el programa:
 
@@ -81,9 +77,16 @@ En cada frame el programa:
 - La cara derecha conecta la cinta de la cara izquierda con la cara superior mediante una entrada horizontal, una curva perfecta de 3/4 de circulo y una salida vertical.
 - La pelota roja empieza en la cara izquierda, avanza por la cara derecha y termina en la cara superior siguiendo las conexiones reales de las aristas.
 - La pista se ve de forma tenue y el tramo recorrido se ilumina detras de la pelota roja.
-- Al terminar el recorrido conectado entre izquierda y arriba, el rastro se reinicia junto con la pelota.
+- Al terminar el recorrido completo por izquierda, derecha y arriba, el rastro se reinicia junto con la pelota.
 - Anima una pelota roja luminosa que recorre los tramos definidos.
 - Sube esas superficies a OpenGL como texturas dinamicas.
+
+## Donde editar
+
+- Dimensiones de ventana y cubo: `cubo.py`, constantes `WIDTH`, `HEIGHT` y `EDGE_PIXELS`.
+- Forma/proyeccion del cubo: `cubo.py`, metodo `create_cube_vertices` y lista `face_targets`.
+- Diseno de la cinta: `diseno.py`, listas `LEFT_FACE_PIECES`, `RIGHT_FACE_PIECES` y `TOP_FACE_PIECES`.
+- Colores, pelota y velocidad: `diseno.py`, constantes `PANEL_COLOR`, `NEON_BLUE`, `RED_BALL`, `RED_GLOW` y `ANIMATION_SPEED`.
 
 ## Controles
 
