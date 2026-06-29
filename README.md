@@ -77,7 +77,7 @@ En cada frame el programa:
 - Dibuja un fondo oscuro con una grilla tenue.
 - Dibuja una linea/tubo azul con brillo neon.
 - La cara izquierda tiene dos tramos inspirados en el boceto: uno superior con bajada, avance horizontal y subida al borde; y otro que entra desde el centro inferior, sube y gira hacia la derecha.
-- La cara superior tiene dos trazos: uno parte desde el centro de la arista compartida con la cara derecha, sube una cuadricula hacia dentro y gira 90 grados para conectar con el trazo mas cercano de la cara izquierda; el otro nace desde el otro extremo de la cinta izquierda y avanza paralelo a la arista superior hasta tocar la arista opuesta.
+- La cara superior tiene dos trazos: uno parte desde el centro de la arista compartida con la cara derecha, sube una cuadricula hacia dentro y gira 90 grados para conectar con el trazo mas cercano de la cara izquierda; el otro nace desde el otro extremo de la cinta izquierda, avanza hasta la mitad, gira 90 grados hacia el centro y vuelve a girar 90 grados para tocar la arista opuesta.
 - La cara derecha conecta la cinta de la cara izquierda con la cara superior mediante una entrada horizontal, una curva perfecta de 3/4 de circulo y una salida vertical.
 - La pelota roja empieza en la cara izquierda, avanza por la cara derecha y termina en la cara superior siguiendo las conexiones reales de las aristas.
 - La pista se ve de forma tenue y el tramo recorrido se ilumina detras de la pelota roja.
