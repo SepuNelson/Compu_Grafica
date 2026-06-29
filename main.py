@@ -26,7 +26,7 @@ class App:
         pg.display.set_caption("Circuit Cube - 3 caras")
         self.clock = pg.time.Clock()
 
-        glClearColor(1.0, 1.0, 1.0, 1.0)
+        glClearColor(0.01, 0.015, 0.03, 1.0)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -198,8 +198,8 @@ class CubeEdges:
 
     def draw(self):
         glUseProgram(self.shader)
-        glUniform4f(glGetUniformLocation(self.shader, "lineColor"), 0.02, 0.02, 0.02, 1.0)
-        glLineWidth(3)
+        glUniform4f(glGetUniformLocation(self.shader, "lineColor"), 0.45, 0.95, 1.0, 0.95)
+        glLineWidth(2)
         glBindVertexArray(self.vao)
         glDrawArrays(GL_LINES, 0, self.vertex_count)
 
@@ -210,16 +210,16 @@ class CubeEdges:
 
 class CircuitTextures:
     def __init__(self):
-        paper = (252, 252, 250)
-        blue = (62, 70, 211)
-        pulse = (255, 218, 24)
-        pulse_soft = (255, 236, 88)
+        panel = (6, 10, 24)
+        neon_blue = (34, 195, 255)
+        red_ball = (255, 42, 54)
+        red_glow = (255, 92, 92)
         self.faces = [
             SingleLineFace(
-                paper,
-                blue,
-                pulse,
-                pulse_soft,
+                panel,
+                neon_blue,
+                red_ball,
+                red_glow,
                 [
                     (0.50, 1.00),
                     (0.50, 0.50),
@@ -228,10 +228,10 @@ class CircuitTextures:
                 (0.00, 0.33),
             ),
             SingleLineFace(
-                paper,
-                blue,
-                pulse,
-                pulse_soft,
+                panel,
+                neon_blue,
+                red_ball,
+                red_glow,
                 [
                     (0.00, 0.50),
                     (0.50, 0.50),
@@ -240,10 +240,10 @@ class CircuitTextures:
                 (0.33, 0.66),
             ),
             SingleLineFace(
-                paper,
-                blue,
-                pulse,
-                pulse_soft,
+                panel,
+                neon_blue,
+                red_ball,
+                red_glow,
                 [
                     (0.50, 1.00),
                     (0.50, 0.50),
@@ -300,17 +300,31 @@ class SingleLineFace:
         self.draw_pulse(global_progress)
 
     def draw_paper_texture(self):
-        pass
+        grid_minor = (28, 58, 88, 52)
+        grid_major = (44, 118, 168, 70)
+        for pos in range(0, self.size + 1, 32):
+            color = grid_major if pos % 128 == 0 else grid_minor
+            pg.draw.line(self.surface, color, (pos, 0), (pos, self.size), 1)
+            pg.draw.line(self.surface, color, (0, pos), (self.size, pos), 1)
 
     def draw_trace(self):
         if len(self.path) < 2:
             return
-        shadow = (*mix_color(self.trace_color, (0, 0, 0), 0.35), 70)
-        base = (*self.trace_color, 235)
-        highlight = (*mix_color(self.trace_color, (255, 255, 255), 0.28), 210)
-        pg.draw.lines(self.surface, shadow, False, self.path, 15)
-        pg.draw.lines(self.surface, base, False, self.path, 11)
-        pg.draw.lines(self.surface, highlight, False, self.path, 4)
+        layers = [
+            ((*self.trace_color, 38), 40),
+            ((*self.trace_color, 72), 28),
+            ((*mix_color(self.trace_color, (120, 235, 255), 0.35), 150), 18),
+            ((*self.trace_color, 245), 11),
+            ((*mix_color(self.trace_color, (255, 255, 255), 0.62), 255), 4),
+        ]
+        for color, width in layers:
+            self.draw_rounded_path(color, width)
+
+    def draw_rounded_path(self, color, width):
+        pg.draw.lines(self.surface, color, False, self.path, width)
+        radius = max(1, width // 2)
+        for point in self.path:
+            pg.draw.circle(self.surface, color, point, radius)
 
     def draw_pulse(self, global_progress):
         if not self.progress_start <= global_progress < self.progress_end:
@@ -319,9 +333,10 @@ class SingleLineFace:
         x, y, _ = point_and_angle_on_path(self.path, local_progress)
         position = (int(x), int(y))
 
-        for radius, alpha in [(24, 24), (15, 72), (7, 235)]:
+        for radius, alpha in [(38, 32), (26, 76), (15, 170)]:
             pg.draw.circle(self.surface, (*self.pulse_soft_color, alpha), position, radius)
-        pg.draw.circle(self.surface, (*self.pulse_color, 255), position, 5)
+        pg.draw.circle(self.surface, (*self.pulse_color, 255), position, 9)
+        pg.draw.circle(self.surface, (255, 230, 230, 230), (position[0] - 3, position[1] - 3), 3)
 
 def create_dynamic_texture(surface):
     texture = glGenTextures(1)
