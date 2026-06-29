@@ -37,9 +37,9 @@ class App:
         glUseProgram(self.shader)
 
         self.faces = [
-            Face((-0.90, -0.90), 0.80, LEFT_FACE),
-            Face((0.10, -0.90), 0.80, RIGHT_FACE),
-            Face((-0.90, 0.10), 0.80, TOP_FACE),
+            Face((0.0, 0.0), 1.0, LEFT_FACE),
+            Face((0.0, 0.0), 1.0, RIGHT_FACE),
+            Face((0.0, 0.0), 1.0, TOP_FACE),
         ]
 
         self.textures = CircuitTextures()
@@ -48,17 +48,33 @@ class App:
         glUniform1i(glGetUniformLocation(self.shader, "textureRight"), 1)
         glUniform1i(glGetUniformLocation(self.shader, "textureTop"), 2)
 
+        self.cube_vertices = self.create_cube_vertices()
         self.update_warps()
+        self.edge_shader = create_color_shader()
+        self.edges = CubeEdges(cube_edge_segments(self.cube_vertices), self.edge_shader)
+
+    def create_cube_vertices(self):
+        # Seven visible cube vertices. The three vectors from v3 have
+        # equivalent projected length, so each face starts as a unit square
+        # and appears as a joined cube face after the homography.
+        return {
+            "v1": (-0.52, 0.30),
+            "v2": (-0.52, -0.30),
+            "v3": (0.0, 0.0),
+            "v4": (0.0, -0.60),
+            "v5": (0.52, 0.30),
+            "v6": (0.52, -0.30),
+            "v7": (0.0, 0.60),
+        }
 
     def update_warps(self):
-        # Seven visible cube vertices, numbered like the project sketch.
-        v1 = (-0.52, 0.28)
-        v2 = (-0.52, -0.42)
-        v3 = (0.0, 0.0)
-        v4 = (0.0, -0.76)
-        v5 = (0.52, 0.28)
-        v6 = (0.52, -0.42)
-        v7 = (0.0, 0.64)
+        v1 = self.cube_vertices["v1"]
+        v2 = self.cube_vertices["v2"]
+        v3 = self.cube_vertices["v3"]
+        v4 = self.cube_vertices["v4"]
+        v5 = self.cube_vertices["v5"]
+        v6 = self.cube_vertices["v6"]
+        v7 = self.cube_vertices["v7"]
 
         face_targets = [
             (v2, v4, v3, v1),
@@ -89,6 +105,8 @@ class App:
             for face in self.faces:
                 face.draw()
 
+            self.edges.draw()
+
             pg.display.flip()
             self.clock.tick(60)
 
@@ -97,7 +115,9 @@ class App:
     def destroy(self):
         for face in self.faces:
             face.destroy()
+        self.edges.destroy()
         self.textures.destroy()
+        glDeleteProgram(self.edge_shader)
         glDeleteProgram(self.shader)
         pg.quit()
 
@@ -150,6 +170,37 @@ class Face:
         glDeleteBuffers(1, (self.vbo,))
 
 
+class CubeEdges:
+    def __init__(self, segments, shader):
+        self.shader = shader
+        vertices = []
+        for start, end in segments:
+            vertices.extend([start[0], start[1], end[0], end[1]])
+        self.vertices = np.array(vertices, dtype=np.float32)
+        self.vertex_count = len(self.vertices) // 2
+
+        self.vao = glGenVertexArrays(1)
+        glBindVertexArray(self.vao)
+
+        self.vbo = glGenBuffers(1)
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
+
+        glEnableVertexAttribArray(0)
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * self.vertices.itemsize, ctypes.c_void_p(0))
+
+    def draw(self):
+        glUseProgram(self.shader)
+        glUniform4f(glGetUniformLocation(self.shader, "lineColor"), 0.02, 0.02, 0.02, 1.0)
+        glLineWidth(3)
+        glBindVertexArray(self.vao)
+        glDrawArrays(GL_LINES, 0, self.vertex_count)
+
+    def destroy(self):
+        glDeleteVertexArrays(1, (self.vao,))
+        glDeleteBuffers(1, (self.vbo,))
+
+
 class CircuitTextures:
     def __init__(self):
         paper = (252, 252, 250)
@@ -163,8 +214,8 @@ class CircuitTextures:
                 pulse,
                 pulse_soft,
                 [
-                    (0.02, 0.50),
-                    (0.98, 0.50),
+                    (0.00, 0.50),
+                    (1.00, 0.50),
                 ],
                 (0.00, 0.33),
             ),
@@ -174,9 +225,9 @@ class CircuitTextures:
                 pulse,
                 pulse_soft,
                 [
-                    (0.02, 0.50),
+                    (0.00, 0.50),
                     (0.54, 0.50),
-                    (0.54, 0.02),
+                    (0.54, 0.00),
                 ],
                 (0.33, 0.66),
             ),
@@ -186,8 +237,8 @@ class CircuitTextures:
                 pulse,
                 pulse_soft,
                 [
-                    (0.54, 0.98),
-                    (0.54, 0.02),
+                    (0.54, 1.00),
+                    (0.54, 0.00),
                 ],
                 (0.66, 1.00),
             ),
@@ -238,7 +289,6 @@ class SingleLineFace:
         self.draw_paper_texture()
         self.draw_trace()
         self.draw_pulse(global_progress)
-        self.draw_face_border()
 
     def draw_paper_texture(self):
         pass
@@ -263,11 +313,6 @@ class SingleLineFace:
         for radius, alpha in [(24, 24), (15, 72), (7, 235)]:
             pg.draw.circle(self.surface, (*self.pulse_soft_color, alpha), position, radius)
         pg.draw.circle(self.surface, (*self.pulse_color, 255), position, 5)
-
-    def draw_face_border(self):
-        rect = pg.Rect(3, 3, self.size - 6, self.size - 6)
-        pg.draw.rect(self.surface, (14, 13, 12, 255), rect, width=5)
-
 
 def create_dynamic_texture(surface):
     texture = glGenTextures(1)
@@ -318,9 +363,53 @@ def mix_color(color_a, color_b, amount):
     return tuple(int(a + (b - a) * amount) for a, b in zip(color_a, color_b))
 
 
+def cube_edge_segments(vertices):
+    names = [
+        ("v1", "v2"),
+        ("v2", "v4"),
+        ("v4", "v6"),
+        ("v6", "v5"),
+        ("v5", "v7"),
+        ("v7", "v1"),
+        ("v1", "v3"),
+        ("v3", "v5"),
+        ("v3", "v4"),
+    ]
+    return [(vertices[start], vertices[end]) for start, end in names]
+
+
 def create_shader(vertex_path, fragment_path):
     vertex_src = vertex_path.read_text(encoding="utf-8")
     fragment_src = fragment_path.read_text(encoding="utf-8")
+
+    return compileProgram(
+        compileShader(vertex_src, GL_VERTEX_SHADER),
+        compileShader(fragment_src, GL_FRAGMENT_SHADER),
+    )
+
+
+def create_color_shader():
+    vertex_src = """
+    #version 330 core
+
+    layout (location = 0) in vec2 position;
+
+    void main()
+    {
+        gl_Position = vec4(position, 0.0, 1.0);
+    }
+    """
+    fragment_src = """
+    #version 330 core
+
+    uniform vec4 lineColor;
+    out vec4 color;
+
+    void main()
+    {
+        color = lineColor;
+    }
+    """
 
     return compileProgram(
         compileShader(vertex_src, GL_VERTEX_SHADER),
