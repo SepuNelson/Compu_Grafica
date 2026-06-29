@@ -223,11 +223,21 @@ class CircuitTextures:
                 [
                     (
                         [
-                            (0.50, 1.00),
-                            (0.50, 0.50),
-                            (1.00, 0.50),
+                            (0.84, 0.00),
+                            (0.84, 0.24),
+                            (0.52, 0.25),
+                            (0.12, 0.24),
+                            (0.12, 0.00),
                         ],
-                        (0.00, 0.33),
+                        (0.64, 0.82),
+                    ),
+                    (
+                        [
+                            (0.50, 1.00),
+                            (0.50, 0.56),
+                            (1.00, 0.56),
+                        ],
+                        (0.00, 0.17),
                     ),
                 ],
             ),
@@ -239,11 +249,14 @@ class CircuitTextures:
                 [
                     (
                         [
-                            (0.00, 0.50),
-                            (0.50, 0.50),
+                            (0.00, 0.56),
+                            (0.20, 0.56),
+                        ]
+                        + arc_points((0.50, 0.56), 0.30, 180, -90, 40)[1:]
+                        + [
                             (0.50, 0.00),
                         ],
-                        (0.33, 0.66),
+                        (0.17, 0.52),
                     ),
                 ],
             ),
@@ -256,10 +269,21 @@ class CircuitTextures:
                     (
                         [
                             (0.50, 1.00),
-                            (0.50, 0.50),
-                            (1.00, 0.50),
+                            (0.50, 0.84),
+                            (0.00, 0.84),
                         ],
-                        (0.66, 1.00),
+                        (0.52, 0.64),
+                    ),
+                    (
+                        [
+                            (0.00, 0.12),
+                            (0.18, 0.12),
+                            (0.36, 0.12),
+                            (0.56, 0.12),
+                            (0.76, 0.12),
+                            (1.00, 0.12),
+                        ],
+                        (0.82, 1.00),
                     ),
                 ],
             ),
@@ -430,6 +454,19 @@ def point_and_angle_on_path(path, progress):
 
     start, end = path[-2], path[-1]
     return path[-1][0], path[-1][1], math.atan2(end[1] - start[1], end[0] - start[0])
+
+
+def arc_points(center, radius, start_degrees, end_degrees, steps):
+    points = []
+    for index in range(steps + 1):
+        t = index / steps
+        degrees = start_degrees + (end_degrees - start_degrees) * t
+        radians = math.radians(degrees)
+        points.append((
+            center[0] + math.cos(radians) * radius,
+            center[1] + math.sin(radians) * radius,
+        ))
+    return points
 
 
 def partial_path(path, progress):

@@ -10,7 +10,7 @@ Los vertices del cubo se calculan desde una longitud de arista en pixeles. Esto 
 
 Las aristas del cubo se dibujan como lineas OpenGL aparte, directamente entre los vertices compartidos. No forman parte de las texturas de cada cara, para evitar espacios visibles entre caras.
 
-La version actual dibuja un circuito estilo neon por codigo: fondo oscuro, una sola linea/tubo azul brillante por tramos, conectada entre las tres caras, y una pelota roja luminosa que recorre el camino.
+La version actual dibuja un circuito estilo neon por codigo: fondo oscuro, linea/tubo azul brillante y una pelota roja luminosa. Por ahora la cara izquierda y la cara superior tienen recorrido conectado; la cara derecha queda vacia para seguir construyendo el circuito por partes.
 
 ## Estructura
 
@@ -75,15 +75,14 @@ El circuito se genera dentro de `main.py` usando superficies de Pygame. No neces
 En cada frame el programa:
 
 - Dibuja un fondo oscuro con una grilla tenue.
-- Dibuja una sola linea/tubo azul con brillo neon.
-- La cara izquierda comienza en la arista inferior, sube al centro y gira 90 grados hacia la derecha.
-- La cara derecha entra por la arista izquierda, llega al centro y gira 90 grados hacia arriba.
-- La cara superior entra por la arista inferior, llega al centro y gira 90 grados hacia la derecha.
-- La pista completa se ve de forma tenue y el tramo recorrido se ilumina detras de la pelota roja.
-- El rastro neon queda acumulado durante el recorrido por izquierda, derecha y arriba.
-- Al terminar la cara superior y volver al inicio, el rastro se reinicia junto con la pelota.
-- Cada entrada y salida de la linea ocurre en el centro de la arista correspondiente.
-- Anima una pelota roja luminosa que recorre el camino completo.
+- Dibuja una linea/tubo azul con brillo neon.
+- La cara izquierda tiene dos tramos inspirados en el boceto: uno superior con bajada, avance horizontal y subida al borde; y otro que entra desde el centro inferior, sube y gira hacia la derecha.
+- La cara superior tiene dos trazos: uno parte desde el centro de la arista compartida con la cara derecha, sube una cuadricula hacia dentro y gira 90 grados para conectar con el trazo mas cercano de la cara izquierda; el otro nace desde el otro extremo de la cinta izquierda y avanza paralelo a la arista superior hasta tocar la arista opuesta.
+- La cara derecha conecta la cinta de la cara izquierda con la cara superior mediante una entrada horizontal, una curva perfecta de 3/4 de circulo y una salida vertical.
+- La pelota roja empieza en la cara izquierda, avanza por la cara derecha y termina en la cara superior siguiendo las conexiones reales de las aristas.
+- La pista se ve de forma tenue y el tramo recorrido se ilumina detras de la pelota roja.
+- Al terminar el recorrido conectado entre izquierda y arriba, el rastro se reinicia junto con la pelota.
+- Anima una pelota roja luminosa que recorre los tramos definidos.
 - Sube esas superficies a OpenGL como texturas dinamicas.
 
 ## Controles
