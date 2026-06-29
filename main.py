@@ -1,5 +1,6 @@
 from pathlib import Path
 import ctypes
+import math
 
 import numpy as np
 import pygame as pg
@@ -22,10 +23,10 @@ class App:
     def __init__(self):
         pg.init()
         pg.display.set_mode((WIDTH, HEIGHT), pg.OPENGL | pg.DOUBLEBUF)
-        pg.display.set_caption("Cubo base - 3 caras")
+        pg.display.set_caption("Circuit Cube - 3 caras")
         self.clock = pg.time.Clock()
 
-        glClearColor(0.06, 0.07, 0.09, 1.0)
+        glClearColor(1.0, 1.0, 1.0, 1.0)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
@@ -41,11 +42,7 @@ class App:
             Face((-0.90, 0.10), 0.80, TOP_FACE),
         ]
 
-        self.textures = CubeTextures(
-            ROOT / "img" / "izquierda" / "default.png",
-            ROOT / "img" / "derecha" / "default.png",
-            ROOT / "img" / "arriba" / "default.png",
-        )
+        self.textures = CircuitTextures()
 
         glUniform1i(glGetUniformLocation(self.shader, "textureLeft"), 0)
         glUniform1i(glGetUniformLocation(self.shader, "textureRight"), 1)
@@ -54,18 +51,19 @@ class App:
         self.update_warps()
 
     def update_warps(self):
-        center = (0.0, 0.0)
-        left_bottom = (-0.46, -0.36)
-        bottom = (0.0, -0.76)
-        right_bottom = (0.46, -0.36)
-        right_top = (0.46, 0.28)
-        top = (0.0, 0.58)
-        left_top = (-0.46, 0.28)
+        # Seven visible cube vertices, numbered like the project sketch.
+        v1 = (-0.52, 0.28)
+        v2 = (-0.52, -0.42)
+        v3 = (0.0, 0.0)
+        v4 = (0.0, -0.76)
+        v5 = (0.52, 0.28)
+        v6 = (0.52, -0.42)
+        v7 = (0.0, 0.64)
 
         face_targets = [
-            (left_bottom, bottom, center, left_top),
-            (bottom, right_bottom, right_top, center),
-            (left_top, center, right_top, top),
+            (v2, v4, v3, v1),
+            (v4, v6, v5, v3),
+            (v3, v5, v7, v1),
         ]
         uniform_names = ["warpLeft", "warpRight", "warpTop"]
 
@@ -85,6 +83,7 @@ class App:
 
             glClear(GL_COLOR_BUFFER_BIT)
             glUseProgram(self.shader)
+            self.textures.update(pg.time.get_ticks() / 1000.0)
             self.textures.use()
 
             for face in self.faces:
@@ -151,11 +150,59 @@ class Face:
         glDeleteBuffers(1, (self.vbo,))
 
 
-class CubeTextures:
-    def __init__(self, left_path, right_path, top_path):
-        self.texture_left = load_texture(left_path, (90, 142, 255), (18, 36, 80))
-        self.texture_right = load_texture(right_path, (255, 186, 73), (91, 48, 12))
-        self.texture_top = load_texture(top_path, (92, 220, 154), (18, 72, 44))
+class CircuitTextures:
+    def __init__(self):
+        paper = (252, 252, 250)
+        blue = (62, 70, 211)
+        pulse = (255, 218, 24)
+        pulse_soft = (255, 236, 88)
+        self.faces = [
+            SingleLineFace(
+                paper,
+                blue,
+                pulse,
+                pulse_soft,
+                [
+                    (0.02, 0.50),
+                    (0.98, 0.50),
+                ],
+                (0.00, 0.33),
+            ),
+            SingleLineFace(
+                paper,
+                blue,
+                pulse,
+                pulse_soft,
+                [
+                    (0.02, 0.50),
+                    (0.54, 0.50),
+                    (0.54, 0.02),
+                ],
+                (0.33, 0.66),
+            ),
+            SingleLineFace(
+                paper,
+                blue,
+                pulse,
+                pulse_soft,
+                [
+                    (0.54, 0.98),
+                    (0.54, 0.02),
+                ],
+                (0.66, 1.00),
+            ),
+        ]
+
+        self.texture_left = create_dynamic_texture(self.faces[0].surface)
+        self.texture_right = create_dynamic_texture(self.faces[1].surface)
+        self.texture_top = create_dynamic_texture(self.faces[2].surface)
+        self.texture_ids = [self.texture_left, self.texture_right, self.texture_top]
+
+    def update(self, elapsed):
+        global_progress = (elapsed * 0.16) % 1.0
+        for texture_id, face in zip(self.texture_ids, self.faces):
+            face.draw(global_progress)
+            update_dynamic_texture(texture_id, face.surface)
 
     def use(self):
         glActiveTexture(GL_TEXTURE0)
@@ -171,35 +218,104 @@ class CubeTextures:
         glDeleteTextures(3, (self.texture_left, self.texture_right, self.texture_top))
 
 
-def load_texture(path, color_a, color_b):
+class SingleLineFace:
+    def __init__(self, background, trace_color, pulse_color, pulse_soft_color, path, progress_range):
+        self.size = 384
+        self.surface = pg.Surface((self.size, self.size), pg.SRCALPHA)
+        self.background = background
+        self.trace_color = trace_color
+        self.pulse_color = pulse_color
+        self.pulse_soft_color = pulse_soft_color
+        self.path = [self.to_pixels(point) for point in path]
+        self.progress_start, self.progress_end = progress_range
+
+    def to_pixels(self, point):
+        x, y = point
+        return int(x * (self.size - 1)), int(y * (self.size - 1))
+
+    def draw(self, global_progress):
+        self.surface.fill((*self.background, 255))
+        self.draw_paper_texture()
+        self.draw_trace()
+        self.draw_pulse(global_progress)
+        self.draw_face_border()
+
+    def draw_paper_texture(self):
+        pass
+
+    def draw_trace(self):
+        if len(self.path) < 2:
+            return
+        shadow = (*mix_color(self.trace_color, (0, 0, 0), 0.35), 70)
+        base = (*self.trace_color, 235)
+        highlight = (*mix_color(self.trace_color, (255, 255, 255), 0.28), 210)
+        pg.draw.lines(self.surface, shadow, False, self.path, 15)
+        pg.draw.lines(self.surface, base, False, self.path, 11)
+        pg.draw.lines(self.surface, highlight, False, self.path, 4)
+
+    def draw_pulse(self, global_progress):
+        if not self.progress_start <= global_progress < self.progress_end:
+            return
+        local_progress = (global_progress - self.progress_start) / (self.progress_end - self.progress_start)
+        x, y, _ = point_and_angle_on_path(self.path, local_progress)
+        position = (int(x), int(y))
+
+        for radius, alpha in [(24, 24), (15, 72), (7, 235)]:
+            pg.draw.circle(self.surface, (*self.pulse_soft_color, alpha), position, radius)
+        pg.draw.circle(self.surface, (*self.pulse_color, 255), position, 5)
+
+    def draw_face_border(self):
+        rect = pg.Rect(3, 3, self.size - 6, self.size - 6)
+        pg.draw.rect(self.surface, (14, 13, 12, 255), rect, width=5)
+
+
+def create_dynamic_texture(surface):
     texture = glGenTextures(1)
     glBindTexture(GL_TEXTURE_2D, texture)
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
 
-    if path.exists():
-        surface = pg.image.load(path).convert_alpha()
-    else:
-        surface = make_checker_surface(color_a, color_b)
-
     width, height = surface.get_size()
-    data = pg.image.tostring(surface, "RGBA", True)
+    data = pg.image.tobytes(surface, "RGBA", True)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data)
-    glGenerateMipmap(GL_TEXTURE_2D)
     return texture
 
 
-def make_checker_surface(color_a, color_b):
-    size = 128
-    tile = 16
-    surface = pg.Surface((size, size), pg.SRCALPHA)
-    for y in range(0, size, tile):
-        for x in range(0, size, tile):
-            color = color_a if ((x // tile) + (y // tile)) % 2 == 0 else color_b
-            pg.draw.rect(surface, color, (x, y, tile, tile))
-    return surface
+def update_dynamic_texture(texture, surface):
+    glBindTexture(GL_TEXTURE_2D, texture)
+    width, height = surface.get_size()
+    data = pg.image.tobytes(surface, "RGBA", True)
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data)
+
+
+def point_and_angle_on_path(path, progress):
+    lengths = []
+    total = 0.0
+    for start, end in zip(path, path[1:]):
+        length = math.dist(start, end)
+        lengths.append(length)
+        total += length
+
+    target = progress * total
+    travelled = 0.0
+    for (start, end), length in zip(zip(path, path[1:]), lengths):
+        if travelled + length >= target:
+            local = 0.0 if length == 0.0 else (target - travelled) / length
+            x = start[0] + (end[0] - start[0]) * local
+            y = start[1] + (end[1] - start[1]) * local
+            angle = math.atan2(end[1] - start[1], end[0] - start[0])
+            return x, y, angle
+        travelled += length
+
+    start, end = path[-2], path[-1]
+    return path[-1][0], path[-1][1], math.atan2(end[1] - start[1], end[0] - start[0])
+
+
+def mix_color(color_a, color_b, amount):
+    return tuple(int(a + (b - a) * amount) for a, b in zip(color_a, color_b))
 
 
 def create_shader(vertex_path, fragment_path):

@@ -1,8 +1,10 @@
-# Cubo base con 3 caras
+# Circuit Cube con 3 caras
 
-Base minima para replicar el proyecto: renderiza un cubo aparente usando tres caras 2D texturizadas: `arriba`, `izquierda` y `derecha`.
+Base minima para replicar el proyecto: renderiza un cubo aparente usando tres caras 2D: `arriba`, `izquierda` y `derecha`.
 
 El cubo no es un modelo 3D real. Cada cara es un cuadrado formado por dos triangulos, y luego cada cuadrado se deforma con una homografia para que visualmente parezca una cara del cubo.
+
+La version actual dibuja un circuito muy simple por codigo: fondo blanco, una sola linea azul por tramos, conectada entre las tres caras, y un pulso que recorre el camino.
 
 ## Estructura
 
@@ -30,7 +32,7 @@ Compu_Grafica/
 - `warp.py`: calcula los coeficientes de homografia para deformar cada cara.
 - `shaders/vertex.glsl`: transforma los vertices de cada cara hacia su posicion final.
 - `shaders/fragment.glsl`: aplica la textura correspondiente a cada cara.
-- `img/arriba`, `img/izquierda`, `img/derecha`: carpetas donde puedes poner una imagen `default.png` para cada cara.
+- `img/arriba`, `img/izquierda`, `img/derecha`: carpetas reservadas si despues quieres agregar recursos externos.
 - `requirements.txt`: dependencias necesarias.
 
 ## Instalacion
@@ -60,17 +62,19 @@ Ejecuta el programa:
 python main.py
 ```
 
-## Texturas
+## Circuito animado
 
-Puedes agregar tus propias imagenes asi:
+El circuito se genera dentro de `main.py` usando superficies de Pygame. No necesita videos ni imagenes externas.
 
-```text
-img/arriba/default.png
-img/izquierda/default.png
-img/derecha/default.png
-```
+En cada frame el programa:
 
-Si no existen esas imagenes, el programa genera texturas simples de colores automaticamente para que igual puedas ver el cubo.
+- Dibuja el fondo claro de cada cara.
+- Dibuja una sola linea azul.
+- La cara izquierda tiene un tramo horizontal.
+- La cara derecha continua el tramo horizontal y luego sube en 90 grados.
+- La cara superior continua verticalmente desde esa conexion.
+- Anima un pulso amarillo que recorre el camino completo.
+- Sube esas superficies a OpenGL como texturas dinamicas.
 
 ## Controles
 
