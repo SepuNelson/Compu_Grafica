@@ -6,6 +6,8 @@ El cubo no es un modelo 3D real. Cada cara es un cuadrado formado por dos triang
 
 Cada cara parte como un cuadrado de lado `1.0`. Luego se proyecta sobre los vertices visibles del cubo para que las caras izquierda, derecha y superior compartan aristas.
 
+Los vertices del cubo se calculan desde una longitud de arista en pixeles. Esto corrige el aspecto rectangular de la ventana OpenGL y permite que todas las aristas visibles se vean del mismo largo en pantalla.
+
 Las aristas negras del cubo se dibujan como lineas OpenGL aparte, directamente entre los vertices compartidos. No forman parte de las texturas de cada cara, para evitar espacios visibles entre caras.
 
 La version actual dibuja un circuito muy simple por codigo: fondo blanco, una sola linea azul por tramos, conectada entre las tres caras, y un pulso que recorre el camino.
@@ -74,9 +76,10 @@ En cada frame el programa:
 
 - Dibuja el fondo claro de cada cara.
 - Dibuja una sola linea azul.
-- La cara izquierda tiene un tramo horizontal.
-- La cara derecha continua el tramo horizontal y luego sube en 90 grados.
-- La cara superior continua verticalmente desde esa conexion.
+- La cara izquierda comienza subiendo y luego gira 90 grados a la derecha.
+- La cara derecha continua el tramo y luego sube en 90 grados.
+- La cara superior continua verticalmente y luego gira 90 grados a la derecha a mitad de cara.
+- Cada entrada y salida de la linea ocurre en el centro de la arista correspondiente.
 - Anima un pulso amarillo que recorre el camino completo.
 - Sube esas superficies a OpenGL como texturas dinamicas.
 

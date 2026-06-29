@@ -54,17 +54,24 @@ class App:
         self.edges = CubeEdges(cube_edge_segments(self.cube_vertices), self.edge_shader)
 
     def create_cube_vertices(self):
-        # Seven visible cube vertices. The three vectors from v3 have
-        # equivalent projected length, so each face starts as a unit square
-        # and appears as a joined cube face after the homography.
+        # Seven visible cube vertices. OpenGL NDC is stretched by the window
+        # aspect ratio, so these coordinates are calculated from a desired
+        # edge length in pixels to make every visible cube edge look equal.
+        edge_pixels = 230.0
+        half_width = WIDTH / 2.0
+        half_height = HEIGHT / 2.0
+        x = (edge_pixels * math.cos(math.radians(30.0))) / half_width
+        y = (edge_pixels * math.sin(math.radians(30.0))) / half_height
+        z = edge_pixels / half_height
+
         return {
-            "v1": (-0.52, 0.30),
-            "v2": (-0.52, -0.30),
+            "v1": (-x, y),
+            "v2": (-x, y - z),
             "v3": (0.0, 0.0),
-            "v4": (0.0, -0.60),
-            "v5": (0.52, 0.30),
-            "v6": (0.52, -0.30),
-            "v7": (0.0, 0.60),
+            "v4": (0.0, -z),
+            "v5": (x, y),
+            "v6": (x, y - z),
+            "v7": (0.0, 2.0 * y),
         }
 
     def update_warps(self):
@@ -214,7 +221,8 @@ class CircuitTextures:
                 pulse,
                 pulse_soft,
                 [
-                    (0.00, 0.50),
+                    (0.50, 1.00),
+                    (0.50, 0.50),
                     (1.00, 0.50),
                 ],
                 (0.00, 0.33),
@@ -226,8 +234,8 @@ class CircuitTextures:
                 pulse_soft,
                 [
                     (0.00, 0.50),
-                    (0.54, 0.50),
-                    (0.54, 0.00),
+                    (0.50, 0.50),
+                    (0.50, 0.00),
                 ],
                 (0.33, 0.66),
             ),
@@ -237,8 +245,9 @@ class CircuitTextures:
                 pulse,
                 pulse_soft,
                 [
-                    (0.54, 1.00),
-                    (0.54, 0.00),
+                    (0.50, 1.00),
+                    (0.50, 0.50),
+                    (1.00, 0.50),
                 ],
                 (0.66, 1.00),
             ),
