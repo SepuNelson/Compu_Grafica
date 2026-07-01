@@ -16,6 +16,7 @@ WIDTH = 1000
 HEIGHT = 700
 EDGE_PIXELS = 230.0
 WINDOW_TITLE = "Circuit Cube - 3 caras"
+HANDLE_RADIUS_PIXELS = 18
 
 LEFT_FACE = 0
 RIGHT_FACE = 1
@@ -55,6 +56,7 @@ class App:
         self.update_warps()
         self.edge_shader = create_color_shader()
         self.edges = CubeEdges(cube_edge_segments(self.cube_vertices), self.edge_shader)
+        self.dragged_vertex = None
 
     def create_cube_vertices(self):
         # OpenGL NDC is stretched by the window aspect ratio, so the cube
@@ -93,8 +95,45 @@ class App:
 
         for face, points, uniform_name in zip(self.faces, face_targets, uniform_names):
             coeffs = homography_coefficients(face.origin, face.size, *points)
+            if not np.all(np.isfinite(coeffs)):
+                raise ValueError("Invalid face projection")
             location = glGetUniformLocation(self.shader, uniform_name)
             glUniform1fv(location, 8, coeffs)
+
+    def mouse_to_ndc(self, position):
+        x, y = position
+        return (x / WIDTH) * 2.0 - 1.0, 1.0 - (y / HEIGHT) * 2.0
+
+    def ndc_to_screen(self, point):
+        x, y = point
+        return (x + 1.0) * WIDTH / 2.0, (1.0 - y) * HEIGHT / 2.0
+
+    def pick_vertex(self, position):
+        closest_name = None
+        closest_distance = HANDLE_RADIUS_PIXELS
+        mx, my = position
+
+        for name, point in self.cube_vertices.items():
+            sx, sy = self.ndc_to_screen(point)
+            distance = math.dist((mx, my), (sx, sy))
+            if distance <= closest_distance:
+                closest_name = name
+                closest_distance = distance
+
+        return closest_name
+
+    def move_vertex(self, name, position):
+        previous_position = self.cube_vertices[name]
+        self.cube_vertices[name] = self.mouse_to_ndc(position)
+        glUseProgram(self.shader)
+        try:
+            self.update_warps()
+        except (np.linalg.LinAlgError, ValueError):
+            self.cube_vertices[name] = previous_position
+            self.update_warps()
+            return
+
+        self.edges.update_segments(cube_edge_segments(self.cube_vertices))
 
     def run(self):
         running = True
@@ -104,6 +143,18 @@ class App:
                     running = False
                 if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                     running = False
+                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
+                    self.textures.cycle_ball_color()
+                if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
+                    self.textures.speed_up()
+                if event.type == pg.KEYDOWN and event.key == pg.K_BACKSPACE:
+                    self.textures.slow_down()
+                if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
+                    self.dragged_vertex = self.pick_vertex(event.pos)
+                if event.type == pg.MOUSEBUTTONUP and event.button == 1:
+                    self.dragged_vertex = None
+                if event.type == pg.MOUSEMOTION and self.dragged_vertex is not None:
+                    self.move_vertex(self.dragged_vertex, event.pos)
 
             glClear(GL_COLOR_BUFFER_BIT)
             glUseProgram(self.shader)
@@ -181,10 +232,7 @@ class Face:
 class CubeEdges:
     def __init__(self, segments, shader):
         self.shader = shader
-        vertices = []
-        for start, end in segments:
-            vertices.extend([start[0], start[1], end[0], end[1]])
-        self.vertices = np.array(vertices, dtype=np.float32)
+        self.vertices = self.segments_to_array(segments)
         self.vertex_count = len(self.vertices) // 2
 
         self.vao = glGenVertexArrays(1)
@@ -192,10 +240,22 @@ class CubeEdges:
 
         self.vbo = glGenBuffers(1)
         glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
-        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_STATIC_DRAW)
+        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_DYNAMIC_DRAW)
 
         glEnableVertexAttribArray(0)
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * self.vertices.itemsize, ctypes.c_void_p(0))
+
+    def segments_to_array(self, segments):
+        vertices = []
+        for start, end in segments:
+            vertices.extend([start[0], start[1], end[0], end[1]])
+        return np.array(vertices, dtype=np.float32)
+
+    def update_segments(self, segments):
+        self.vertices = self.segments_to_array(segments)
+        self.vertex_count = len(self.vertices) // 2
+        glBindBuffer(GL_ARRAY_BUFFER, self.vbo)
+        glBufferData(GL_ARRAY_BUFFER, self.vertices.nbytes, self.vertices, GL_DYNAMIC_DRAW)
 
     def draw(self):
         glUseProgram(self.shader)

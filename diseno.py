@@ -5,12 +5,25 @@ from OpenGL.GL import *
 
 
 ANIMATION_SPEED = 0.16
+MIN_ANIMATION_SPEED = 0.04
+MAX_ANIMATION_SPEED = 0.64
+SPEED_FACTOR = 1.25
 TEXTURE_SIZE = 384
 
 PANEL_COLOR = (6, 10, 24)
 NEON_BLUE = (34, 195, 255)
 RED_BALL = (255, 42, 54)
 RED_GLOW = (255, 92, 92)
+GREEN_BALL = (42, 255, 126)
+GREEN_GLOW = (108, 255, 166)
+YELLOW_BALL = (255, 218, 48)
+YELLOW_GLOW = (255, 236, 116)
+
+BALL_COLOR_STATES = [
+    (RED_BALL, RED_GLOW),
+    (GREEN_BALL, GREEN_GLOW),
+    (YELLOW_BALL, YELLOW_GLOW),
+]
 
 
 def arc_points(center, radius, start_degrees, end_degrees, steps):
@@ -90,6 +103,10 @@ FACE_DESIGNS = [
 
 class CircuitTextures:
     def __init__(self):
+        self.animation_speed = ANIMATION_SPEED
+        self.progress = 0.0
+        self.last_elapsed = None
+        self.ball_color_index = 0
         self.faces = [
             SingleLineFace(PANEL_COLOR, NEON_BLUE, RED_BALL, RED_GLOW, pieces)
             for pieces in FACE_DESIGNS
@@ -101,10 +118,28 @@ class CircuitTextures:
         self.texture_ids = [self.texture_left, self.texture_right, self.texture_top]
 
     def update(self, elapsed):
-        global_progress = (elapsed * ANIMATION_SPEED) % 1.0
+        if self.last_elapsed is None:
+            self.last_elapsed = elapsed
+
+        delta = max(0.0, elapsed - self.last_elapsed)
+        self.last_elapsed = elapsed
+        self.progress = (self.progress + delta * self.animation_speed) % 1.0
+
         for texture_id, face in zip(self.texture_ids, self.faces):
-            face.draw(global_progress)
+            face.draw(self.progress)
             update_dynamic_texture(texture_id, face.surface)
+
+    def cycle_ball_color(self):
+        self.ball_color_index = (self.ball_color_index + 1) % len(BALL_COLOR_STATES)
+        pulse_color, pulse_soft_color = BALL_COLOR_STATES[self.ball_color_index]
+        for face in self.faces:
+            face.set_pulse_colors(pulse_color, pulse_soft_color)
+
+    def speed_up(self):
+        self.animation_speed = min(MAX_ANIMATION_SPEED, self.animation_speed * SPEED_FACTOR)
+
+    def slow_down(self):
+        self.animation_speed = max(MIN_ANIMATION_SPEED, self.animation_speed / SPEED_FACTOR)
 
     def use(self):
         glActiveTexture(GL_TEXTURE0)
@@ -132,6 +167,10 @@ class SingleLineFace:
             ([self.to_pixels(point) for point in path], progress_range)
             for path, progress_range in pieces
         ]
+
+    def set_pulse_colors(self, pulse_color, pulse_soft_color):
+        self.pulse_color = pulse_color
+        self.pulse_soft_color = pulse_soft_color
 
     def to_pixels(self, point):
         x, y = point

@@ -85,11 +85,16 @@ En cada frame el programa:
 
 - Dimensiones de ventana y cubo: `cubo.py`, constantes `WIDTH`, `HEIGHT` y `EDGE_PIXELS`.
 - Forma/proyeccion del cubo: `cubo.py`, metodo `create_cube_vertices` y lista `face_targets`.
+- Interaccion de vertices movibles: `cubo.py`, metodos `pick_vertex`, `move_vertex` y `mouse_to_ndc`.
 - Diseno de la cinta: `diseno.py`, listas `LEFT_FACE_PIECES`, `RIGHT_FACE_PIECES` y `TOP_FACE_PIECES`.
 - Colores, pelota y velocidad: `diseno.py`, constantes `PANEL_COLOR`, `NEON_BLUE`, `RED_BALL`, `RED_GLOW` y `ANIMATION_SPEED`.
 
 ## Controles
 
+- Click izquierdo cerca de una interseccion natural de aristas y arrastrar: mover ese vertice del cubo.
+- `Enter`: cambiar el color de la pelota en ciclo rojo, verde, amarillo y rojo.
+- `Espacio`: aumentar la velocidad de la pelota.
+- `Backspace`: disminuir la velocidad de la pelota.
 - `Esc`: cerrar la ventana.
 - Cerrar la ventana desde la `X` tambien termina el programa.
 
