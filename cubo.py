@@ -26,10 +26,30 @@ TOP_FACE = 2
 class App:
     def __init__(self):
         pg.init()
-        pg.display.set_mode((WIDTH, HEIGHT), pg.OPENGL | pg.DOUBLEBUF)
-        pg.display.set_caption(WINDOW_TITLE)
         self.clock = pg.time.Clock()
+        self.window_width = WIDTH
+        self.window_height = HEIGHT
+        self.windowed_size = (WIDTH, HEIGHT)
+        self.is_fullscreen = False
+        self.dragged_vertex = None
 
+        self.open_display(self.windowed_size, self.is_fullscreen)
+        self.create_gl_resources()
+
+    def open_display(self, size, fullscreen):
+        flags = pg.OPENGL | pg.DOUBLEBUF
+        if fullscreen:
+            flags |= pg.FULLSCREEN
+            surface = pg.display.set_mode((0, 0), flags)
+        else:
+            flags |= pg.RESIZABLE
+            surface = pg.display.set_mode(size, flags)
+
+        pg.display.set_caption(WINDOW_TITLE)
+        self.window_width, self.window_height = surface.get_size()
+        glViewport(0, 0, self.window_width, self.window_height)
+
+    def create_gl_resources(self):
         glClearColor(0.01, 0.015, 0.03, 1.0)
         glEnable(GL_BLEND)
         glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
@@ -56,16 +76,16 @@ class App:
         self.update_warps()
         self.edge_shader = create_color_shader()
         self.edges = CubeEdges(cube_edge_segments(self.cube_vertices), self.edge_shader)
-        self.dragged_vertex = None
 
     def create_cube_vertices(self):
         # OpenGL NDC is stretched by the window aspect ratio, so the cube
         # vertices are calculated from a desired visual edge length in pixels.
-        half_width = WIDTH / 2.0
-        half_height = HEIGHT / 2.0
-        x = (EDGE_PIXELS * math.cos(math.radians(30.0))) / half_width
-        y = (EDGE_PIXELS * math.sin(math.radians(30.0))) / half_height
-        z = EDGE_PIXELS / half_height
+        half_width = self.window_width / 2.0
+        half_height = self.window_height / 2.0
+        edge_pixels = EDGE_PIXELS * min(self.window_width, self.window_height) / HEIGHT
+        x = (edge_pixels * math.cos(math.radians(30.0))) / half_width
+        y = (edge_pixels * math.sin(math.radians(30.0))) / half_height
+        z = edge_pixels / half_height
 
         return {
             "v1": (-x, y),
@@ -102,11 +122,11 @@ class App:
 
     def mouse_to_ndc(self, position):
         x, y = position
-        return (x / WIDTH) * 2.0 - 1.0, 1.0 - (y / HEIGHT) * 2.0
+        return (x / self.window_width) * 2.0 - 1.0, 1.0 - (y / self.window_height) * 2.0
 
     def ndc_to_screen(self, point):
         x, y = point
-        return (x + 1.0) * WIDTH / 2.0, (1.0 - y) * HEIGHT / 2.0
+        return (x + 1.0) * self.window_width / 2.0, (1.0 - y) * self.window_height / 2.0
 
     def pick_vertex(self, position):
         closest_name = None
@@ -135,20 +155,52 @@ class App:
 
         self.edges.update_segments(cube_edge_segments(self.cube_vertices))
 
+    def reset_cube_projection(self):
+        self.cube_vertices = self.create_cube_vertices()
+        glUseProgram(self.shader)
+        self.update_warps()
+        self.edges.update_segments(cube_edge_segments(self.cube_vertices))
+
+    def resize_window(self, size):
+        self.window_width = max(1, size[0])
+        self.window_height = max(1, size[1])
+        self.windowed_size = (self.window_width, self.window_height)
+        glViewport(0, 0, self.window_width, self.window_height)
+        self.dragged_vertex = None
+        self.reset_cube_projection()
+
+    def toggle_fullscreen(self):
+        self.destroy_gl_resources()
+        self.is_fullscreen = not self.is_fullscreen
+
+        if self.is_fullscreen:
+            self.windowed_size = (self.window_width, self.window_height)
+            self.open_display((0, 0), fullscreen=True)
+        else:
+            self.open_display(self.windowed_size, fullscreen=False)
+
+        self.dragged_vertex = None
+        self.create_gl_resources()
+
     def run(self):
         running = True
         while running:
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     running = False
-                if event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
-                    running = False
-                if event.type == pg.KEYDOWN and event.key == pg.K_RETURN:
-                    self.textures.cycle_ball_color()
-                if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
-                    self.textures.speed_up()
-                if event.type == pg.KEYDOWN and event.key == pg.K_BACKSPACE:
-                    self.textures.slow_down()
+                if event.type == pg.VIDEORESIZE and not self.is_fullscreen:
+                    self.resize_window(event.size)
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_ESCAPE:
+                        running = False
+                    elif event.key == pg.K_F11:
+                        self.toggle_fullscreen()
+                    elif event.key == pg.K_RETURN:
+                        self.textures.cycle_ball_color()
+                    elif event.key == pg.K_SPACE:
+                        self.textures.speed_up()
+                    elif event.key == pg.K_BACKSPACE:
+                        self.textures.slow_down()
                 if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
                     self.dragged_vertex = self.pick_vertex(event.pos)
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
@@ -171,13 +223,16 @@ class App:
 
         self.destroy()
 
-    def destroy(self):
+    def destroy_gl_resources(self):
         for face in self.faces:
             face.destroy()
         self.edges.destroy()
         self.textures.destroy()
         glDeleteProgram(self.edge_shader)
         glDeleteProgram(self.shader)
+
+    def destroy(self):
+        self.destroy_gl_resources()
         pg.quit()
 
 

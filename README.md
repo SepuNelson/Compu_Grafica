@@ -1,16 +1,6 @@
-# Circuit Cube con 3 caras
+# Proyecto 
 
-Base minima para replicar el proyecto: renderiza un cubo aparente usando tres caras 2D: `arriba`, `izquierda` y `derecha`.
-
-El cubo no es un modelo 3D real. Cada cara es un cuadrado formado por dos triangulos, y luego cada cuadrado se deforma con una homografia para que visualmente parezca una cara del cubo.
-
-Cada cara parte como un cuadrado de lado `1.0`. Luego se proyecta sobre los vertices visibles del cubo para que las caras izquierda, derecha y superior compartan aristas.
-
-Los vertices del cubo se calculan desde una longitud de arista en pixeles. Esto corrige el aspecto rectangular de la ventana OpenGL y permite que todas las aristas visibles se vean del mismo largo en pantalla.
-
-Las aristas del cubo se dibujan como lineas OpenGL aparte, directamente entre los vertices compartidos. No forman parte de las texturas de cada cara, para evitar espacios visibles entre caras.
-
-La version actual dibuja un circuito estilo neon por codigo: fondo oscuro, linea/tubo azul brillante y una pelota roja luminosa. El recorrido ya conecta las caras izquierda, derecha y superior.
+Proyecto para la asigantura  "INF451 - Computación Gráfica", 
 
 ## Estructura
 
@@ -95,7 +85,9 @@ En cada frame el programa:
 - `Enter`: cambiar el color de la pelota en ciclo rojo, verde, amarillo y rojo.
 - `Espacio`: aumentar la velocidad de la pelota.
 - `Backspace`: disminuir la velocidad de la pelota.
+- `F11`: alternar entre ventana normal y pantalla completa.
 - `Esc`: cerrar la ventana.
+- La ventana se puede redimensionar o maximizar.
 - Cerrar la ventana desde la `X` tambien termina el programa.
 
 ## Idea tecnica
